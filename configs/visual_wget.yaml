@@ -1,0 +1,8 @@
+# Визуализация: граф зависимостей wget
+package: wget
+repository: http://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz
+test_mode: false
+version: "1.21.4-1ubuntu4"
+output: examples/wget.png
+filter: ""
+reverse: false

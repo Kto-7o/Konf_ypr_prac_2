@@ -2,10 +2,9 @@
 
 Точка входа. Загружает конфигурацию из YAML-файла, строит обходом в
 ширину граф зависимостей заданного пакета (с учетом транзитивности)
-или, в режиме reverse, граф обратных зависимостей (пакетов, которые
-зависят от заданного), и выводит его на экран вместе с найденными
-циклами. Источник данных - репозиторий Ubuntu или тестовый
-репозиторий.
+или, в режиме reverse, граф обратных зависимостей, выводит его
+описание на языке диаграмм D2 и сохраняет изображение графа в PNG.
+Источник данных - репозиторий Ubuntu или тестовый репозиторий.
 
 Пример запуска:
     python3 src/main.py --config config.yaml
@@ -17,8 +16,15 @@ from typing import List, Optional, Union
 
 from apt_repo import AptSource, RepositoryError, load_index
 from config import DEFAULT_CONFIG, Config, ConfigError, load_config
-from graph import Graph, build_graph, find_cycles, format_graph
+from graph import Graph, build_graph, find_cycles
 from local_repo import LocalSource, load_local_repo
+from visualize import (
+    VisualizationError,
+    d2_path,
+    render_png,
+    save_text,
+    to_d2,
+)
 
 EXIT_OK = 0
 EXIT_FAILURE = 1
@@ -72,37 +78,52 @@ def title(config: Config) -> str:
     return text
 
 
-def summary(config: Config, graph: Graph) -> List[str]:
-    """Формирует итоговые строки: число пакетов и циклы.
+def summary(config: Config, graph: Graph, source: Source) -> List[str]:
+    """Формирует итоговые строки: число пакетов, циклы, пропуски.
 
     Цикл всегда выводится в направлении «пакет -> его зависимость».
     """
-    if config.reverse:
-        dependents = list(graph)[1:]
-        lines = [f"Зависят от {config.package}: {len(dependents)}"]
-    else:
-        lines = [f"Пакетов в графе: {len(graph)}"]
-    cycles = find_cycles(graph, config.package)
-    for cycle in cycles:
+    lines = [f"Пакетов в графе: {len(graph)}"]
+    for cycle in find_cycles(graph, config.package):
         if config.reverse:
             cycle = cycle[::-1]
         lines.append("Циклическая зависимость: " + " -> ".join(cycle))
-    if not cycles:
-        lines.append("Циклических зависимостей нет")
-    return lines
-
-
-def report(config: Config, graph: Graph, source: Source) -> List[str]:
-    """Формирует текстовый отчет о графе зависимостей."""
-    if not graph:
-        return [f"{title(config)}: пакет исключен фильтром"]
-    arrow = "<-" if config.reverse else "->"
-    lines = [f"{title(config)}:"] + format_graph(graph, arrow)
-    lines += summary(config, graph)
     if source.missing:
         missing = ", ".join(sorted(source.missing))
         lines.append(f"Нет в репозитории (без зависимостей): {missing}")
     return lines
+
+
+def visualize(config: Config, graph: Graph) -> List[str]:
+    """Сохраняет описание графа на D2 и строит изображение PNG.
+
+    Raises:
+        VisualizationError: ошибка записи файла или утилиты d2.
+    """
+    source = d2_path(config.output)
+    save_text(source, to_d2(graph, config.package, config.reverse))
+    render_png(source, config.output)
+    return [
+        f"Описание графа на D2: {source}",
+        f"Изображение графа: {config.output}",
+    ]
+
+
+def run(config: Config, source: Source) -> int:
+    """Строит граф, выводит его на D2 и сохраняет изображение."""
+    graph = make_graph(config, source)
+    if not graph:
+        print(f"{title(config)}: пакет исключен фильтром")
+        return EXIT_OK
+    print(f"{title(config)} (D2):")
+    print(to_d2(graph, config.package, config.reverse))
+    print(*summary(config, graph, source), sep="\n")
+    try:
+        print(*visualize(config, graph), sep="\n")
+    except VisualizationError as error:
+        print(f"Ошибка визуализации: {error}", file=sys.stderr)
+        return EXIT_FAILURE
+    return EXIT_OK
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -126,8 +147,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     except RepositoryError as error:
         print(f"Ошибка репозитория: {error}", file=sys.stderr)
         return EXIT_FAILURE
-    print(*report(config, make_graph(config, source), source), sep="\n")
-    return EXIT_OK
+    return run(config, source)
 
 
 if __name__ == "__main__":

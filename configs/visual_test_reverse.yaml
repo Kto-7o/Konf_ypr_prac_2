@@ -1,0 +1,8 @@
+# Визуализация: обратные зависимости BASE в тестовом репозитории
+package: BASE
+repository: repos/complex.txt
+test_mode: true
+version: "1.0"
+output: examples/test_reverse.png
+filter: ""
+reverse: true

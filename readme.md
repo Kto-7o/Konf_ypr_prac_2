@@ -21,6 +21,8 @@
    тестового репозитория.
 4. **Дополнительные операции** — режим вывода обратных зависимостей
    (пакетов, которые зависят от заданного) тем же обходом BFS.
+5. **Визуализация** — текстовое представление графа на языке диаграмм
+   D2 и сохранение изображения графа в PNG.
 
 ### Структура проекта
 
@@ -31,10 +33,12 @@ Konf_ypr_prac_2/
 │   ├── config.py    # загрузка и проверка YAML-конфигурации
 │   ├── apt_repo.py  # загрузка и разбор индекса Packages
 │   ├── local_repo.py # тестовый репозиторий (граф из файла)
-│   └── graph.py     # BFS, фильтрация, поиск циклов
+│   ├── graph.py     # BFS, фильтрация, поиск циклов
+│   └── visualize.py # описание графа на D2, вызов утилиты d2
 ├── tests/           # тесты (pytest), tests/data - тестовый индекс
 ├── repos/           # файлы тестовых репозиториев
 ├── configs/         # примеры конфигураций (errors/ - с ошибками)
+├── examples/        # описания графов на D2 (PNG создаются при запуске)
 ├── scripts/         # демонстрационные скрипты
 ├── config.yaml      # конфигурация по умолчанию
 ├── run.sh / run.bat # запуск приложения
@@ -59,7 +63,7 @@ Konf_ypr_prac_2/
 | `repository` | строка | Обычный режим: URL файла `Packages` (`.gz`/`.xz`) со схемой `http`, `https` или `file`. Тестовый режим: путь к существующему файлу тестового репозитория |
 | `test_mode` | `true`/`false` | Режим работы с тестовым репозиторием |
 | `version` | строка | Версия пакета в формате Debian (`[эпоха:]версия[-ревизия]`), начинается с цифры. Числа вида `1.0` нужно заключать в кавычки |
-| `output` | строка | Имя файла с изображением графа, расширение `.png`; каталог должен существовать |
+| `output` | строка | Имя файла с изображением графа, расширение `.png`; каталог должен существовать. Рядом сохраняется описание на D2 (`graph.png` → `graph.d2`) |
 | `filter` | строка | Необязательный. Подстрока: пакеты, имя которых ее содержит, не учитываются. По умолчанию пустая строка |
 | `reverse` | `true`/`false` | Необязательный. `true` — вывод обратных зависимостей. По умолчанию `false` |
 
@@ -127,8 +131,27 @@ stderr), код возврата — `1`.
 данный указан в зависимостях. Индекс обратных зависимостей строится
 один раз по всему репозиторию; для apt учитываются все альтернативы
 `a | b` и виртуальные пакеты. Фильтр и обработка циклов работают так
-же, как для прямых зависимостей. Отчет имеет вид `пакет <- зависящие
+же, как для прямых зависимостей. На этапе 4 отчет имел вид `пакет <- зависящие
 пакеты`, циклы выводятся в направлении «пакет -> его зависимость».
+
+### Визуализация (этап 5)
+
+Описание графа на языке D2 формируется модулем `visualize.py` без
+сторонних библиотек: каждый пакет — узел (имя в кавычках, чтобы D2 не
+разбирал точки в именах вида `libdb5.3t64`), каждая зависимость —
+ребро `"пакет" -> "зависимость"`. Анализируемый пакет выделяется
+желтым, ребра циклических зависимостей — красным. В режиме `reverse`
+ребра также направлены от зависящего пакета к зависимости.
+
+Описание выводится на экран и сохраняется в файл `<output>.d2`, затем
+изображение строится утилитой [d2](https://d2lang.com):
+`d2 graph.d2 graph.png`. Утилиту нужно установить отдельно
+(`curl -fsSL https://d2lang.com/install.sh | sh -s --`, на Windows —
+msi-пакет со страницы релизов); путь к ней можно задать переменной
+окружения `D2_BIN`. При первом экспорте в PNG d2 скачивает браузер
+Chromium (Playwright), поэтому нужен интернет. Если утилита не найдена
+или завершилась с ошибкой, выводится `Ошибка визуализации: ...`, код
+возврата `1`, файл `.d2` при этом уже сохранен.
 
 ### Режим тестового репозитория
 
@@ -163,13 +186,16 @@ D:          # пакет без зависимостей
   `RepositoryError`.
 - `local_repo.py`: `load_local_repo()`, `parse_local_repo()`,
   `LocalSource` (`dependencies()`, `dependents()`).
-- `graph.py`: `build_graph()` (BFS), `find_cycles()`, `format_graph()`.
+- `graph.py`: `build_graph()` (BFS), `find_cycles()`.
+- `visualize.py`: `to_d2()`, `cycle_edges()`, `quote()`, `d2_path()`,
+  `save_text()`, `render_png()`, `VisualizationError`.
 - `main.py`: `build_parser()`, `make_source()`, `make_graph()`,
-  `report()`, `main()`.
+  `summary()`, `visualize()`, `run()`, `main()`.
 
 ## 3. Сборка и запуск тестов
 
-Требуется **Python 3.8+**, **PyYAML** и **pytest** (≥ 7):
+Требуется **Python 3.8+**, **PyYAML**, **pytest** (≥ 7) и утилита
+**d2** (для PNG; в тестах ее вызов подменяется):
 
 ```bash
 pip install pyyaml pytest
@@ -191,172 +217,139 @@ bash scripts/demo_config.sh       # ошибки конфигурации (эт�
 bash scripts/demo_graph.sh        # тестовые репозитории (этап 3)
 bash scripts/demo_ubuntu.sh       # репозиторий Ubuntu (этап 3)
 bash scripts/demo_reverse.sh      # обратные зависимости (этап 4)
+bash scripts/demo_visual.sh       # визуализация трех пакетов (этап 5)
 ```
 
 Для Windows — одноименные `.bat`-файлы в `scripts/`.
 
 ## 4. Примеры использования
 
-### Обратные зависимости в тестовом репозитории
+На этапе 5 приложение выводит граф на языке D2 вместо списка
+«пакет -> зависимости» этапов 3–4; формат конфигурации и обработка
+ошибок не изменились.
 
-```
-$ ./run.sh --config configs/reverse_complex.yaml
-Обратные зависимости BASE:
-  BASE <- CORE, NET, LIBSSL, LIBX
-  CORE <- APP
-  NET <- APP
-  LIBSSL <- NET
-  LIBX <- CORE, UI, GFX
-  APP <- (нет)
-  UI <- APP
-  GFX <- UI
-Зависят от BASE: 7
-Циклических зависимостей нет
+### Визуализация трех пакетов Ubuntu
 
-$ ./run.sh --config configs/reverse_filter.yaml
-Обратные зависимости BASE (без пакетов, содержащих 'LIB'):
-  BASE <- CORE, NET
-  CORE <- APP
-  NET <- APP
-  APP <- (нет)
-Зависят от BASE: 3
-Циклических зависимостей нет
-
-$ ./run.sh --config configs/reverse_cycles.yaml
-Обратные зависимости E:
-  E <- C, F
-  C <- B
-  F <- E
-  B <- A
-  A <- C
-Зависят от E: 4
-Циклическая зависимость: C -> A -> B -> C
-Циклическая зависимость: E -> F -> E
-
-$ ./run.sh --config configs/reverse_missing.yaml
-Обратные зависимости DRIVER:
-  DRIVER <- LIBGL
-  LIBGL <- GFX
-  GFX <- UI
-  UI <- APP
-  APP <- (нет)
-Зависят от DRIVER: 4
-Циклических зависимостей нет
+```bash
+./run.sh --config configs/visual_curl.yaml   # examples/curl.png
+./run.sh --config configs/visual_wget.yaml   # examples/wget.png
+./run.sh --config configs/visual_nano.yaml   # examples/nano.png
 ```
 
-### Обратные зависимости в репозитории Ubuntu
+Описания графов на D2 лежат в `examples/*.d2` (изображения PNG в
+репозиторий не добавляются — это бинарные файлы, они создаются при
+запуске). Пример для nano:
 
 ```
-$ ./run.sh --config configs/reverse_ubuntu.yaml
-Обратные зависимости liberror-perl 0.17029-2:
-  liberror-perl <- git, libmail-dkim-perl, libmail-spf-perl
-  git <- etckeeper, libgit-wrapper-perl, livecd-rootfs, ubuntu-server, ubuntu-wsl
-  libmail-dkim-perl <- amavisd-new, spamassassin
-  libmail-spf-perl <- (нет)
-  etckeeper <- (нет)
-  libgit-wrapper-perl <- (нет)
-  livecd-rootfs <- (нет)
-  ubuntu-server <- (нет)
-  ubuntu-wsl <- (нет)
-  amavisd-new <- (нет)
-  spamassassin <- sa-compile, spamd
-  sa-compile <- (нет)
-  spamd <- (нет)
-Зависят от liberror-perl: 12
-Циклических зависимостей нет
+$ ./run.sh --config configs/visual_nano.yaml
+Граф зависимостей nano 7.2-2build1 (D2):
+direction: down
+"nano": {style.fill: "#ffd966"}
+"libc6"
+"libncursesw6"
+"libtinfo6"
+"libgcc-s1"
+"gcc-14-base"
+"nano" -> "libc6"
+"nano" -> "libncursesw6"
+"nano" -> "libtinfo6"
+"libc6" -> "libgcc-s1": {style.stroke: "#cc0000"}
+"libncursesw6" -> "libtinfo6"
+"libncursesw6" -> "libc6"
+"libtinfo6" -> "libc6"
+"libgcc-s1" -> "gcc-14-base"
+"libgcc-s1" -> "libc6": {style.stroke: "#cc0000"}
+
+Пакетов в графе: 6
+Циклическая зависимость: libc6 -> libgcc-s1 -> libc6
+Описание графа на D2: examples/nano.d2
+Изображение графа: examples/nano.png
 ```
 
 ### Тестовый репозиторий с циклами
 
 ```
-$ ./run.sh --config configs/test_cycles.yaml
-Граф зависимостей A:
-  A -> B
-  B -> C, D
-  C -> A, E
-  D -> D
-  E -> F
-  F -> E
+$ ./run.sh --config configs/visual_test_cycles.yaml
+Граф зависимостей A (D2):
+direction: down
+"A": {style.fill: "#ffd966"}
+"B"
+"C"
+"D"
+"E"
+"F"
+"A" -> "B": {style.stroke: "#cc0000"}
+"B" -> "C": {style.stroke: "#cc0000"}
+"B" -> "D"
+"C" -> "A": {style.stroke: "#cc0000"}
+"C" -> "E"
+"D" -> "D": {style.stroke: "#cc0000"}
+"E" -> "F": {style.stroke: "#cc0000"}
+"F" -> "E": {style.stroke: "#cc0000"}
+
 Пакетов в графе: 6
 Циклическая зависимость: A -> B -> C -> A
 Циклическая зависимость: E -> F -> E
 Циклическая зависимость: D -> D
+Описание графа на D2: examples/test_cycles.d2
+Изображение графа: examples/test_cycles.png
 ```
 
-### Фильтрация пакетов
+`configs/visual_test_reverse.yaml` — граф обратных зависимостей `BASE`.
+
+### Ошибка визуализации
 
 ```
-$ ./run.sh --config configs/test_complex.yaml
-Граф зависимостей APP:
-  APP -> CORE, UI, NET
-  CORE -> LIBX, BASE
-  UI -> LIBX, GFX
-  NET -> LIBSSL, BASE
-  LIBX -> BASE
-  BASE -> (нет)
-  GFX -> LIBX, LIBGL
-  LIBSSL -> BASE
-  LIBGL -> DRIVER
-  DRIVER -> (нет)
-Пакетов в графе: 10
-Циклических зависимостей нет
-Нет в репозитории (без зависимостей): DRIVER
-
-$ ./run.sh --config configs/test_filter.yaml
-Граф зависимостей APP (без пакетов, содержащих 'LIB'):
-  APP -> CORE, UI, NET
-  CORE -> BASE
-  UI -> GFX
-  NET -> BASE
-  BASE -> (нет)
-  GFX -> (нет)
-Пакетов в графе: 6
-Циклических зависимостей нет
-
-$ ./run.sh --config configs/test_filter_root.yaml
-Граф зависимостей APP (без пакетов, содержащих 'AP'): пакет исключен фильтром
+$ ./run.sh --config configs/visual_nano.yaml      # d2 не установлена
+...
+Ошибка визуализации: утилита d2 не найдена; установите ее (https://d2lang.com/tour/install) или задайте путь в D2_BIN
 ```
 
-### Репозиторий Ubuntu (curl, сокращено)
+## 5. Сравнение со штатными инструментами
 
-```
-$ ./run.sh
-Граф зависимостей curl 8.5.0-2ubuntu10:
-  curl -> libc6, libcurl4t64, zlib1g
-  libc6 -> libgcc-s1
-  libcurl4t64 -> libbrotli1, libc6, libgssapi-krb5-2, libidn2-0, libldap2, libnghttp2-14, libpsl5t64, librtmp1, libssh-4, libssl3t64, libzstd1, zlib1g
-  zlib1g -> libc6
-  libgcc-s1 -> gcc-14-base, libc6
-  ...
-Пакетов в графе: 32
-Циклическая зависимость: libc6 -> libgcc-s1 -> libc6
+Для сравнения на Ubuntu 24.04 используются штатные средства
+визуализации зависимостей apt:
+
+```bash
+sudo apt install debtree apt-rdepends graphviz
+debtree curl | dot -Tpng -o curl-debtree.png   # граф (Graphviz)
+apt-rdepends curl                              # транзитивные зависимости
+apt-cache depends curl                         # прямые зависимости
 ```
 
-### Ошибки репозитория
+Состав пакетов по полям `Depends`/`Pre-Depends` совпадает, отличия
+объясняются следующим:
 
-```
-$ ./run.sh --config configs/errors/test_broken_repo.yaml
-Ошибка репозитория: repos/broken.txt, строка 3: недопустимое имя пакета 'd' (нужны большие латинские буквы)
-$ ./run.sh --config configs/errors/test_no_package.yaml
-Ошибка репозитория: пакет Z не найден в тестовом репозитории
-$ ./run.sh --config configs/errors/unknown_version.yaml
-Ошибка репозитория: версия 7.0.0 пакета curl не найдена; доступные версии: 8.5.0-2ubuntu10
-```
+1. **Источник данных.** Приложение читает один индекс `Packages`
+   (`noble/main`, amd64), а apt — все подключенные источники
+   (`noble-updates`, `noble-security`, `universe` и др.). Поэтому у
+   штатных средств могут быть другие (более новые) версии пакетов и
+   ограничения версий, а пакеты из других компонентов раскрываются,
+   тогда как у нас они попадают в строку «Нет в репозитории».
+2. **Альтернативы `a | b`.** Приложение учитывает только первую
+   альтернативу (ее выбирает apt); debtree рисует все альтернативы,
+   apt-cache depends перечисляет их с пометкой `|`.
+3. **Виртуальные пакеты.** Приложение заменяет виртуальный пакет
+   (`libssl3`, `libgnutls30`) пакетом из `Provides`; debtree и
+   apt-cache показывают виртуальный пакет отдельным узлом или
+   строкой `<libssl3>` со списком реализующих его пакетов.
+4. **Типы связей.** Учитываются только `Pre-Depends` и `Depends`;
+   debtree по умолчанию добавляет `Recommends` и конфликты
+   (`Conflicts`, `Breaks`), apt-cache depends — также `Suggests`,
+   `Replaces`.
+5. **Сокращение графа.** debtree по умолчанию не раскрывает или
+   скрывает базовые пакеты из своих списков `endlist`/`skiplist`
+   (например, `libc6`), поэтому его граф меньше; приложение
+   раскрывает все пакеты, поэтому виден цикл
+   `libc6 -> libgcc-s1 -> libc6`.
+6. **Фильтр и обратные зависимости.** Фильтрация по подстроке имени и
+   выделение циклов есть только в приложении; аналог режима
+   `reverse` — `apt-cache rdepends`, который использует все источники
+   и показывает только прямые обратные зависимости.
 
-### Ошибки конфигурации
-
-```
-$ ./run.sh --config configs/errors/missing_params.yaml
-Ошибка конфигурации: неизвестный параметр: depth
-Ошибка конфигурации: repository: параметр не задан
-Ошибка конфигурации: version: параметр не задан
-Ошибка конфигурации: output: параметр не задан
-```
-
-### Тесты
+## 6. Тесты
 
 ```
 $ python3 -m pytest -q
-..................................................................... [100%]
-69 passed
+74 passed
 ```

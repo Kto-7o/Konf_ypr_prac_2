@@ -81,14 +81,3 @@ def find_cycles(graph: Graph, root: str) -> List[List[str]]:
             path.append(child)
             stack.append(iter(graph.get(child, [])))
     return cycles
-
-
-def format_graph(graph: Graph, arrow: str = "->") -> List[str]:
-    """Формирует строки «пакет -> зависимости» в порядке обхода.
-
-    Для графа обратных зависимостей используется стрелка «<-».
-    """
-    return [
-        f"  {name} {arrow} {', '.join(children) or '(нет)'}"
-        for name, children in graph.items()
-    ]

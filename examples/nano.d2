@@ -1,0 +1,16 @@
+direction: down
+"nano": {style.fill: "#ffd966"}
+"libc6"
+"libncursesw6"
+"libtinfo6"
+"libgcc-s1"
+"gcc-14-base"
+"nano" -> "libc6"
+"nano" -> "libncursesw6"
+"nano" -> "libtinfo6"
+"libc6" -> "libgcc-s1": {style.stroke: "#cc0000"}
+"libncursesw6" -> "libtinfo6"
+"libncursesw6" -> "libc6"
+"libtinfo6" -> "libc6"
+"libgcc-s1" -> "gcc-14-base"
+"libgcc-s1" -> "libc6": {style.stroke: "#cc0000"}

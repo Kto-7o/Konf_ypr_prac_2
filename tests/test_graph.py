@@ -1,6 +1,6 @@
 """Тесты построения графа (BFS), фильтрации и поиска циклов."""
 
-from graph import build_graph, find_cycles, format_graph
+from graph import build_graph, find_cycles
 
 DIAMOND = {"A": ["B", "C"], "B": ["D"], "C": ["D"], "D": []}
 CYCLES = {"A": ["B"], "B": ["C", "D"], "C": ["A"], "D": ["D"]}
@@ -75,15 +75,6 @@ def test_no_cycles_in_diamond():
     """Ромб - не цикл."""
     assert find_cycles(DIAMOND, "A") == []
     assert find_cycles({}, "A") == []
-
-
-def test_format_graph():
-    """Строки «пакет -> зависимости» и «пакет <- зависящие»."""
-    assert format_graph({"A": ["B", "C"], "B": []}) == [
-        "  A -> B, C",
-        "  B -> (нет)",
-    ]
-    assert format_graph({"D": ["B"]}, "<-") == ["  D <- B"]
 
 
 def test_reverse_bfs():

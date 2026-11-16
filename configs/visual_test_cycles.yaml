@@ -1,0 +1,8 @@
+# Визуализация: тестовый репозиторий с циклами
+package: A
+repository: repos/cycles.txt
+test_mode: true
+version: "1.0"
+output: examples/test_cycles.png
+filter: ""
+reverse: false
