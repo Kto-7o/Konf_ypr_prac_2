@@ -17,7 +17,7 @@ import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Set
 
 GZIP_MAGIC = b"\x1f\x8b"
 XZ_MAGIC = b"\xfd7zXZ\x00"
@@ -158,3 +158,56 @@ def direct_dependencies(fields: Stanza) -> List[Dependency]:
     for field in DEPENDS_FIELDS:
         result += parse_depends(fields.get(field, ""))
     return result
+
+
+def build_provides(index: Index) -> Dict[str, str]:
+    """Сопоставляет виртуальные пакеты (поле Provides) реальным."""
+    provides: Dict[str, str] = {}
+    for name, stanzas in index.items():
+        for dep in parse_depends(stanzas[0].get("Provides", "")):
+            provides.setdefault(dep.name, name)
+    return provides
+
+
+class AptSource:
+    """Источник зависимостей - индекс репозитория Ubuntu.
+
+    Для анализируемого пакета берется заданная версия, для остальных
+    пакетов - первая найденная в индексе. Из альтернатив «a | b»
+    учитывается первая (ее выбирает apt по умолчанию). Виртуальный
+    пакет заменяется первым пакетом, который его предоставляет.
+
+    Attributes:
+        missing: пакеты, отсутствующие в индексе (например, из других
+            компонентов репозитория).
+    """
+
+    def __init__(self, index: Index, root: str, version: str):
+        """Проверяет наличие заданной версии анализируемого пакета.
+
+        Raises:
+            RepositoryError: пакет или версия не найдены.
+        """
+        self.index = index
+        self.root = find_package(index, root, version)
+        self.provides = build_provides(index)
+        self.missing: Set[str] = set()
+
+    def resolve(self, name: str) -> str:
+        """Возвращает реальный пакет для виртуального имени."""
+        if name in self.index:
+            return name
+        return self.provides.get(name, name)
+
+    def dependencies(self, name: str) -> List[str]:
+        """Возвращает имена прямых зависимостей пакета без повторов."""
+        if name == self.root["Package"]:
+            fields = self.root
+        elif name in self.index:
+            fields = self.index[name][0]
+        else:
+            self.missing.add(name)
+            return []
+        dependencies = direct_dependencies(fields)
+        names = [self.resolve(dep.name) for dep in dependencies]
+        return list(dict.fromkeys(names))

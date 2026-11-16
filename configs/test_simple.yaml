@@ -1,0 +1,7 @@
+# Тестовый репозиторий без циклов
+package: A
+repository: repos/simple.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: ""

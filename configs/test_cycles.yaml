@@ -1,0 +1,7 @@
+# Тестовый репозиторий с циклическими зависимостями
+package: A
+repository: repos/cycles.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: ""

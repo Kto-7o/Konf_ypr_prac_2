@@ -1,0 +1,7 @@
+# Фильтр: исключаются пакеты, содержащие LIB
+package: APP
+repository: repos/complex.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: "LIB"

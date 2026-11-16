@@ -1,0 +1,6 @@
+# Ошибка формата файла тестового репозитория
+package: A
+repository: repos/broken.txt
+test_mode: true
+version: "1.0"
+output: graph.png

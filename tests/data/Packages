@@ -46,3 +46,14 @@ Package: python3-six
 Architecture: all
 Version: 1.16.0-4
 Depends: python3:any
+
+Package: libgnutls30t64
+Architecture: amd64
+Version: 3.8.3-1.1ubuntu3
+Provides: libgnutls30 (= 3.8.3-1.1ubuntu3)
+Depends: libc6 (>= 2.34)
+
+Package: librtmp1
+Architecture: amd64
+Version: 2.4+20151223.gitfa8646d.1-2build7
+Depends: libc6 (>= 2.14), libgnutls30 (>= 3.7.2), libgmp10

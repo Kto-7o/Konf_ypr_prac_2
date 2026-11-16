@@ -1,0 +1,6 @@
+# Пакет не описан в тестовом репозитории
+package: Z
+repository: repos/simple.txt
+test_mode: true
+version: "1.0"
+output: graph.png

@@ -1,0 +1,7 @@
+# Анализ пакета внутри цикла
+package: E
+repository: repos/cycles.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: ""

@@ -7,8 +7,10 @@ from pathlib import Path
 import pytest
 
 from apt_repo import (
+    AptSource,
     Dependency,
     RepositoryError,
+    build_provides,
     decompress,
     direct_dependencies,
     find_package,
@@ -99,3 +101,26 @@ def test_pre_depends_first():
     fields = find_package(index, "libcurl4t64", "8.5.0-2ubuntu10")
     names = [dep.name for dep in direct_dependencies(fields)]
     assert names == ["multiarch-support", "libc6", "libssl3t64", "zlib1g"]
+
+
+def test_build_provides():
+    """Виртуальный пакет сопоставляется предоставляющему его пакету."""
+    index = parse_index(PACKAGES.read_text(encoding="utf-8"))
+    assert build_provides(index) == {"libgnutls30": "libgnutls30t64"}
+
+
+def test_apt_source():
+    """Источник: заданная версия корня, разрешение виртуальных пакетов."""
+    index = parse_index(PACKAGES.read_text(encoding="utf-8"))
+    source = AptSource(index, "curl", "8.5.0-2ubuntu10.4")
+    assert source.dependencies("curl") == ["libc6", "libcurl4t64", "zlib1g"]
+    assert source.dependencies("librtmp1")[1] == "libgnutls30t64"
+    assert source.dependencies("multiarch-support") == []
+    assert source.missing == {"multiarch-support"}
+
+
+def test_apt_source_unknown_version():
+    """Неизвестная версия анализируемого пакета - ошибка."""
+    index = parse_index(PACKAGES.read_text(encoding="utf-8"))
+    with pytest.raises(RepositoryError):
+        AptSource(index, "curl", "0.1")

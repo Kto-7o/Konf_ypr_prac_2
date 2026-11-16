@@ -1,0 +1,10 @@
+# Тестовый репозиторий для демонстрации фильтра и неописанных пакетов
+APP: CORE UI NET
+CORE: LIBX BASE
+UI: LIBX GFX
+NET: LIBSSL BASE
+GFX: LIBX LIBGL
+LIBSSL: BASE
+LIBX: BASE
+LIBGL: DRIVER  # DRIVER не описан - считается пакетом без зависимостей
+BASE:
