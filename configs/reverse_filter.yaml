@@ -1,0 +1,8 @@
+# Обратные зависимости BASE без пакетов, содержащих LIB
+package: BASE
+repository: repos/complex.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: "LIB"
+reverse: true

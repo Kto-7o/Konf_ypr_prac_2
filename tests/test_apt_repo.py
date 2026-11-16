@@ -124,3 +124,19 @@ def test_apt_source_unknown_version():
     index = parse_index(PACKAGES.read_text(encoding="utf-8"))
     with pytest.raises(RepositoryError):
         AptSource(index, "curl", "0.1")
+
+
+def test_alternatives():
+    """Все альтернативы записи «a | b»."""
+    dep = parse_depends("libssl3t64 (>= 3) | libssl-alt:any")[0]
+    assert dep.alternatives == ["libssl3t64", "libssl-alt"]
+
+
+def test_apt_source_dependents():
+    """Обратные зависимости, в том числе через альтернативы и Provides."""
+    index = parse_index(PACKAGES.read_text(encoding="utf-8"))
+    source = AptSource(index, "libc6", "2.39-0ubuntu8")
+    assert source.dependents("libcurl4t64") == ["curl"]
+    assert source.dependents("libssl-alt") == ["libcurl4t64"]
+    assert source.dependents("libgnutls30t64") == ["librtmp1"]
+    assert source.dependents("curl") == []

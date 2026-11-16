@@ -1,0 +1,8 @@
+# Обратные зависимости базового пакета BASE
+package: BASE
+repository: repos/complex.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: ""
+reverse: true

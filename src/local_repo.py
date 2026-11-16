@@ -80,20 +80,25 @@ class LocalSource:
 
     Attributes:
         missing: пакеты, на которые есть ссылки, но нет описания.
+        reverse: пакет -> пакеты, которые от него зависят.
     """
 
     def __init__(self, repo: LocalRepo, root: str):
-        """Проверяет, что анализируемый пакет описан в репозитории.
+        """Проверяет, что анализируемый пакет есть в репозитории.
 
         Raises:
-            RepositoryError: пакет root отсутствует.
+            RepositoryError: пакет root не описан и на него нет ссылок.
         """
-        if root not in repo:
+        self.repo = repo
+        self.missing: Set[str] = set()
+        self.reverse: LocalRepo = {}
+        for name, dependencies in repo.items():
+            for dependency in dependencies:
+                self.reverse.setdefault(dependency, []).append(name)
+        if root not in repo and root not in self.reverse:
             raise RepositoryError(
                 f"пакет {root} не найден в тестовом репозитории"
             )
-        self.repo = repo
-        self.missing: Set[str] = set()
 
     def dependencies(self, name: str) -> List[str]:
         """Возвращает прямые зависимости пакета."""
@@ -101,3 +106,7 @@ class LocalSource:
             self.missing.add(name)
             return []
         return list(dict.fromkeys(self.repo[name]))
+
+    def dependents(self, name: str) -> List[str]:
+        """Возвращает пакеты, которые напрямую зависят от данного."""
+        return list(dict.fromkeys(self.reverse.get(name, [])))

@@ -19,6 +19,8 @@
    транзитивности обходом в ширину (BFS) без рекурсии, фильтрация
    пакетов по подстроке, обработка циклических зависимостей, режим
    тестового репозитория.
+4. **Дополнительные операции** — режим вывода обратных зависимостей
+   (пакетов, которые зависят от заданного) тем же обходом BFS.
 
 ### Структура проекта
 
@@ -59,6 +61,7 @@ Konf_ypr_prac_2/
 | `version` | строка | Версия пакета в формате Debian (`[эпоха:]версия[-ревизия]`), начинается с цифры. Числа вида `1.0` нужно заключать в кавычки |
 | `output` | строка | Имя файла с изображением графа, расширение `.png`; каталог должен существовать |
 | `filter` | строка | Необязательный. Подстрока: пакеты, имя которых ее содержит, не учитываются. По умолчанию пустая строка |
+| `reverse` | `true`/`false` | Необязательный. `true` — вывод обратных зависимостей. По умолчанию `false` |
 
 Пример `config.yaml`:
 
@@ -115,6 +118,18 @@ stderr), код возврата — `1`.
 - Циклы находятся итеративным обходом в глубину и выводятся строками
   `Циклическая зависимость: A -> B -> C -> A`.
 
+### Обратные зависимости (этап 4)
+
+При `reverse: true` выводятся пакеты, которые зависят от заданного
+(напрямую или транзитивно). Используется тот же обход в ширину
+`build_graph()`, что и на этапе 3: вместо функции прямых зависимостей
+ему передается функция `dependents()`, возвращающая пакеты, у которых
+данный указан в зависимостях. Индекс обратных зависимостей строится
+один раз по всему репозиторию; для apt учитываются все альтернативы
+`a | b` и виртуальные пакеты. Фильтр и обработка циклов работают так
+же, как для прямых зависимостей. Отчет имеет вид `пакет <- зависящие
+пакеты`, циклы выводятся в направлении «пакет -> его зависимость».
+
 ### Режим тестового репозитория
 
 При `test_mode: true` параметр `repository` — путь к текстовому файлу
@@ -144,11 +159,13 @@ D:          # пакет без зависимостей
 - `config.py`: `Config`, `ConfigError`, `load_config()`.
 - `apt_repo.py`: `load_index()`, `parse_index()`, `parse_depends()`,
   `find_package()`, `direct_dependencies()`, `build_provides()`,
-  `AptSource`, `Dependency`, `RepositoryError`.
+  `AptSource` (`dependencies()`, `dependents()`), `Dependency`,
+  `RepositoryError`.
 - `local_repo.py`: `load_local_repo()`, `parse_local_repo()`,
-  `LocalSource`.
+  `LocalSource` (`dependencies()`, `dependents()`).
 - `graph.py`: `build_graph()` (BFS), `find_cycles()`, `format_graph()`.
-- `main.py`: `build_parser()`, `make_source()`, `report()`, `main()`.
+- `main.py`: `build_parser()`, `make_source()`, `make_graph()`,
+  `report()`, `main()`.
 
 ## 3. Сборка и запуск тестов
 
@@ -173,11 +190,81 @@ python3 src/main.py [--config FILE]
 bash scripts/demo_config.sh       # ошибки конфигурации (этап 1)
 bash scripts/demo_graph.sh        # тестовые репозитории (этап 3)
 bash scripts/demo_ubuntu.sh       # репозиторий Ubuntu (этап 3)
+bash scripts/demo_reverse.sh      # обратные зависимости (этап 4)
 ```
 
 Для Windows — одноименные `.bat`-файлы в `scripts/`.
 
 ## 4. Примеры использования
+
+### Обратные зависимости в тестовом репозитории
+
+```
+$ ./run.sh --config configs/reverse_complex.yaml
+Обратные зависимости BASE:
+  BASE <- CORE, NET, LIBSSL, LIBX
+  CORE <- APP
+  NET <- APP
+  LIBSSL <- NET
+  LIBX <- CORE, UI, GFX
+  APP <- (нет)
+  UI <- APP
+  GFX <- UI
+Зависят от BASE: 7
+Циклических зависимостей нет
+
+$ ./run.sh --config configs/reverse_filter.yaml
+Обратные зависимости BASE (без пакетов, содержащих 'LIB'):
+  BASE <- CORE, NET
+  CORE <- APP
+  NET <- APP
+  APP <- (нет)
+Зависят от BASE: 3
+Циклических зависимостей нет
+
+$ ./run.sh --config configs/reverse_cycles.yaml
+Обратные зависимости E:
+  E <- C, F
+  C <- B
+  F <- E
+  B <- A
+  A <- C
+Зависят от E: 4
+Циклическая зависимость: C -> A -> B -> C
+Циклическая зависимость: E -> F -> E
+
+$ ./run.sh --config configs/reverse_missing.yaml
+Обратные зависимости DRIVER:
+  DRIVER <- LIBGL
+  LIBGL <- GFX
+  GFX <- UI
+  UI <- APP
+  APP <- (нет)
+Зависят от DRIVER: 4
+Циклических зависимостей нет
+```
+
+### Обратные зависимости в репозитории Ubuntu
+
+```
+$ ./run.sh --config configs/reverse_ubuntu.yaml
+Обратные зависимости liberror-perl 0.17029-2:
+  liberror-perl <- git, libmail-dkim-perl, libmail-spf-perl
+  git <- etckeeper, libgit-wrapper-perl, livecd-rootfs, ubuntu-server, ubuntu-wsl
+  libmail-dkim-perl <- amavisd-new, spamassassin
+  libmail-spf-perl <- (нет)
+  etckeeper <- (нет)
+  libgit-wrapper-perl <- (нет)
+  livecd-rootfs <- (нет)
+  ubuntu-server <- (нет)
+  ubuntu-wsl <- (нет)
+  amavisd-new <- (нет)
+  spamassassin <- sa-compile, spamd
+  sa-compile <- (нет)
+  spamd <- (нет)
+Зависят от liberror-perl: 12
+Циклических зависимостей нет
+```
 
 ### Тестовый репозиторий с циклами
 
@@ -270,6 +357,6 @@ $ ./run.sh --config configs/errors/missing_params.yaml
 
 ```
 $ python3 -m pytest -q
-............................................................ [100%]
-60 passed
+..................................................................... [100%]
+69 passed
 ```

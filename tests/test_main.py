@@ -25,7 +25,7 @@ def write_config(tmp_path, **values):
     return ["--config", str(path)]
 
 
-def local(tmp_path, package, repo, exclude=""):
+def local(tmp_path, package, repo, exclude="", reverse="false"):
     """Аргументы для запуска на файле из каталога repos/."""
     return write_config(
         tmp_path,
@@ -33,7 +33,45 @@ def local(tmp_path, package, repo, exclude=""):
         repository=str(ROOT / "repos" / f"{repo}.txt"),
         test_mode="true",
         filter=f'"{exclude}"',
+        reverse=reverse,
     )
+
+
+def test_local_reverse(tmp_path, capsys):
+    """Обратные зависимости в тестовом репозитории."""
+    assert main(local(tmp_path, "E", "simple", reverse="true")) == EXIT_OK
+    assert capsys.readouterr().out.splitlines() == [
+        "Обратные зависимости E:",
+        "  E <- B, C",
+        "  B <- A",
+        "  C <- A",
+        "  A <- (нет)",
+        "Зависят от E: 3",
+        "Циклических зависимостей нет",
+    ]
+
+
+def test_local_reverse_cycle_and_filter(tmp_path, capsys):
+    """Обратные зависимости с циклом; фильтр."""
+    assert main(local(tmp_path, "E", "cycles", reverse="true")) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "Циклическая зависимость: E -> F -> E" in out
+    args = local(tmp_path, "BASE", "complex", "LIB", reverse="true")
+    assert main(args) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "LIB" not in out.split("\n", 1)[1]
+
+
+def test_apt_reverse(tmp_path, capsys):
+    """Обратные зависимости в индексе Ubuntu."""
+    args = write_config(
+        tmp_path, package="zlib1g", version='"1:1.3.dfsg-3.1ubuntu2"',
+        reverse="true",
+    )
+    assert main(args) == EXIT_OK
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "Обратные зависимости zlib1g 1:1.3.dfsg-3.1ubuntu2:"
+    assert out[1] == "  zlib1g <- curl, libcurl4t64"
 
 
 def test_apt_graph(tmp_path, capsys):

@@ -17,7 +17,7 @@ import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 GZIP_MAGIC = b"\x1f\x8b"
 XZ_MAGIC = b"\xfd7zXZ\x00"
@@ -45,6 +45,16 @@ class Dependency:
 
     name: str
     text: str
+
+    @property
+    def alternatives(self) -> List[str]:
+        """Имена всех альтернатив записи «a | b»."""
+        names = []
+        for part in self.text.split("|"):
+            match = DEP_NAME_RE.match(part.strip())
+            if match:
+                names.append(match.group(1))
+        return names
 
 
 def download(url: str) -> bytes:
@@ -177,6 +187,10 @@ class AptSource:
     учитывается первая (ее выбирает apt по умолчанию). Виртуальный
     пакет заменяется первым пакетом, который его предоставляет.
 
+    Обратные зависимости пакета - пакеты индекса, у которых он указан
+    в Pre-Depends или Depends (в том числе как альтернатива или через
+    виртуальный пакет).
+
     Attributes:
         missing: пакеты, отсутствующие в индексе (например, из других
             компонентов репозитория).
@@ -192,6 +206,7 @@ class AptSource:
         self.root = find_package(index, root, version)
         self.provides = build_provides(index)
         self.missing: Set[str] = set()
+        self.reverse: Optional[Dict[str, List[str]]] = None
 
     def resolve(self, name: str) -> str:
         """Возвращает реальный пакет для виртуального имени."""
@@ -211,3 +226,21 @@ class AptSource:
         dependencies = direct_dependencies(fields)
         names = [self.resolve(dep.name) for dep in dependencies]
         return list(dict.fromkeys(names))
+
+    def _build_reverse(self) -> Dict[str, List[str]]:
+        """Строит индекс обратных зависимостей по всему репозиторию."""
+        reverse: Dict[str, List[str]] = {}
+        root = self.root["Package"]
+        for name, stanzas in self.index.items():
+            fields = self.root if name == root else stanzas[0]
+            for dependency in direct_dependencies(fields):
+                for alternative in dependency.alternatives:
+                    target = self.resolve(alternative)
+                    reverse.setdefault(target, []).append(name)
+        return reverse
+
+    def dependents(self, name: str) -> List[str]:
+        """Возвращает пакеты, которые напрямую зависят от данного."""
+        if self.reverse is None:
+            self.reverse = self._build_reverse()
+        return list(dict.fromkeys(self.reverse.get(name, [])))

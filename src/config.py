@@ -7,7 +7,8 @@
     test_mode   режим работы с тестовым репозиторием (true/false);
     version     версия пакета;
     output      имя файла с изображением графа (PNG);
-    filter      подстрока для фильтрации пакетов (необязательный).
+    filter      подстрока для фильтрации пакетов (необязательный);
+    reverse     режим вывода обратных зависимостей (необязательный).
 """
 
 import os
@@ -19,7 +20,7 @@ from urllib.parse import urlparse
 import yaml
 
 DEFAULT_CONFIG = "config.yaml"
-DEFAULTS: Dict[str, Any] = {"filter": ""}
+DEFAULTS: Dict[str, Any] = {"filter": "", "reverse": False}
 APT_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9+.-]+$")
 TEST_NAME_RE = re.compile(r"^[A-Z]+$")
 VERSION_RE = re.compile(r"^[0-9][0-9A-Za-z.+~:-]*$")
@@ -47,6 +48,7 @@ class Config:
         version: версия пакета.
         output: имя файла с изображением графа.
         filter: подстрока; пакеты, содержащие ее, не учитываются.
+        reverse: True - вывод обратных зависимостей.
     """
 
     package: str
@@ -55,6 +57,7 @@ class Config:
     version: str
     output: str
     filter: str
+    reverse: bool
 
 
 PARAMS = tuple(field.name for field in fields(Config))
@@ -111,8 +114,8 @@ def _check_repository(value: Any, test_mode: bool) -> Optional[str]:
     return None
 
 
-def _check_test_mode(value: Any, _test_mode: bool) -> Optional[str]:
-    """Проверяет режим работы: допускаются только true и false."""
+def _check_flag(value: Any, _test_mode: bool) -> Optional[str]:
+    """Проверяет логический параметр: допускаются только true и false."""
     if not isinstance(value, bool):
         return f"ожидается true или false, получено {value!r}"
     return None
@@ -154,10 +157,11 @@ def _check_filter(value: Any, _test_mode: bool) -> Optional[str]:
 _CHECKS: Dict[str, Callable[[Any, bool], Optional[str]]] = {
     "package": _check_package,
     "repository": _check_repository,
-    "test_mode": _check_test_mode,
+    "test_mode": _check_flag,
     "version": _check_version,
     "output": _check_output,
     "filter": _check_filter,
+    "reverse": _check_flag,
 }
 
 

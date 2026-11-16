@@ -1,0 +1,8 @@
+# Обратные зависимости пакета E, входящего в цикл E -> F -> E
+package: E
+repository: repos/cycles.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: ""
+reverse: true

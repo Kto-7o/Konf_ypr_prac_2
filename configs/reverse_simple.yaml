@@ -1,0 +1,8 @@
+# Обратные зависимости общей зависимости E (ромб без циклов)
+package: E
+repository: repos/simple.txt
+test_mode: true
+version: "1.0"
+output: graph.png
+filter: ""
+reverse: true

@@ -47,6 +47,13 @@ def test_filter_is_optional(tmp_path):
     assert load_config(write_config(tmp_path, values)).filter == ""
 
 
+def test_reverse_flag(tmp_path):
+    """Параметр reverse необязателен, по умолчанию false."""
+    assert load_config(write_config(tmp_path, VALID)).reverse is False
+    values = {**VALID, "reverse": "true"}
+    assert load_config(write_config(tmp_path, values)).reverse is True
+
+
 def test_missing_file(tmp_path):
     """Отсутствующий файл конфигурации - ошибка."""
     with pytest.raises(ConfigError, match="не найден"):
@@ -85,6 +92,7 @@ def test_missing_and_unknown(tmp_path):
         ("repository", "ftp://host/x", "схемой http"),
         ("repository", "http:///x", "адрес сервера"),
         ("test_mode", "maybe", "true или false"),
+        ("reverse", "1", "true или false"),
         ("version", "1.0", "кавычки"),
         ("version", "v8", "недопустимая версия"),
         ("output", "graph.svg", ".png"),

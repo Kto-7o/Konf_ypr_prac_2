@@ -78,8 +78,17 @@ def test_no_cycles_in_diamond():
 
 
 def test_format_graph():
-    """Строки «пакет -> зависимости»."""
+    """Строки «пакет -> зависимости» и «пакет <- зависящие»."""
     assert format_graph({"A": ["B", "C"], "B": []}) == [
         "  A -> B, C",
         "  B -> (нет)",
     ]
+    assert format_graph({"D": ["B"]}, "<-") == ["  D <- B"]
+
+
+def test_reverse_bfs():
+    """Тот же BFS по обратным ребрам дает обратные зависимости."""
+    reverse = {"D": ["B", "C"], "B": ["A"], "C": ["A"]}
+    graph = build_graph("D", deps_of(reverse))
+    assert list(graph) == ["D", "B", "C", "A"]
+    assert graph["A"] == []

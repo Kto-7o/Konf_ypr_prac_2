@@ -55,6 +55,14 @@ def test_source():
 
 
 def test_source_unknown_root():
-    """Анализируемый пакет должен быть описан."""
+    """Анализируемый пакет должен быть описан или упомянут."""
     with pytest.raises(RepositoryError, match="не найден"):
         LocalSource({"A": []}, "B")
+    assert LocalSource({"A": ["B"]}, "B").dependencies("B") == []
+
+
+def test_source_dependents():
+    """Обратные зависимости: пакеты, зависящие от данного."""
+    source = LocalSource({"A": ["C", "C"], "B": ["C"], "C": []}, "C")
+    assert source.dependents("C") == ["A", "B"]
+    assert source.dependents("A") == []
