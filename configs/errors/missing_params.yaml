@@ -1,0 +1,4 @@
+# Не заданы repository, version, output; лишний параметр depth
+package: curl
+test_mode: false
+depth: 3

@@ -1,0 +1,6 @@
+# Режим тестового репозитория: имя пакета и путь к файлу неверны
+package: curl
+repository: repos/no_such_repo.txt
+test_mode: true
+version: "1.0"
+output: graph.png

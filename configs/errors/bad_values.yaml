@@ -1,0 +1,7 @@
+# Неверные значения при правильных типах
+package: "Curl Tool"
+repository: ftp://archive.ubuntu.com/ubuntu
+test_mode: false
+version: "v8.5"
+output: no_such_dir/graph.svg
+filter: ""

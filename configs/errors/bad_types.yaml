@@ -1,0 +1,7 @@
+# Неверные типы значений
+package: 42
+repository: [http://archive.ubuntu.com]
+test_mode: "yes please"
+version: 1.0
+output: 7
+filter: [lib]
