@@ -13,6 +13,8 @@
 1. **Минимальный прототип с конфигурацией** — все параметры задаются в
    YAML-файле, при запуске выводятся в формате «ключ = значение»,
    ошибки во всех параметрах обнаруживаются и описываются.
+2. **Сбор данных** — загрузка индекса пакетов Ubuntu (apt) по URL,
+   поиск заданной версии пакета и вывод всех его прямых зависимостей.
 
 ### Структура проекта
 
@@ -20,9 +22,10 @@
 Konf_ypr_prac_2/
 ├── src/
 │   ├── main.py      # точка входа, параметры командной строки
-│   └── config.py    # загрузка и проверка YAML-конфигурации
-├── tests/           # тесты (pytest)
-├── configs/errors/  # конфигурации с ошибками для демонстрации
+│   ├── config.py    # загрузка и проверка YAML-конфигурации
+│   └── apt_repo.py  # загрузка и разбор индекса Packages
+├── tests/           # тесты (pytest), tests/data - тестовый индекс
+├── configs/         # примеры конфигураций (errors/ - с ошибками)
 ├── scripts/         # демонстрационные скрипты
 ├── config.yaml      # конфигурация по умолчанию
 ├── run.sh / run.bat # запуск приложения
@@ -69,10 +72,34 @@ filter: ""
 сразу обо всех найденных ошибках (строки `Ошибка конфигурации: ...` в
 stderr), код возврата — `1`.
 
+### Получение зависимостей (формат Ubuntu / apt)
+
+Параметр `repository` — URL индексного файла `Packages` одного
+компонента репозитория, например
+`http://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz`.
+Индекс загружается стандартным модулем `urllib` (поддерживаются схемы
+`http`, `https`, `file`), распаковывается (`gzip`, `xz` или без сжатия)
+и разбирается вручную: блоки «Поле: значение», разделенные пустыми
+строками, с учетом строк-продолжений. Менеджеры пакетов и сторонние
+библиотеки для получения зависимостей не используются.
+
+Для пакета `package` выбирается блок с полем `Version`, равным
+`version`; прямые зависимости — записи полей `Pre-Depends` и `Depends`
+(через запятую). Запись выводится как есть: с ограничением версии
+`(>= 2.34)` и альтернативами `a | b`.
+
+Ошибки (stderr `Ошибка репозитория: ...`, код возврата `1`): сервер
+недоступен или вернул ошибку HTTP, поврежденный архив, пустой индекс,
+пакет не найден, версия не найдена (выводится список доступных версий).
+Режим тестового репозитория (`test_mode: true`) реализуется на этапе 3.
+
 ### Модули
 
-- `config.py`: `Config`, `ConfigError`, `load_config()`, `format_params()`.
-- `main.py`: `build_parser()`, `main()`.
+- `config.py`: `Config`, `ConfigError`, `load_config()`.
+- `apt_repo.py`: `load_index()`, `parse_index()`, `parse_depends()`,
+  `find_package()`, `direct_dependencies()`, `Dependency`,
+  `RepositoryError`.
+- `main.py`: `build_parser()`, `show_direct_dependencies()`, `main()`.
 
 ## 3. Сборка и запуск тестов
 
@@ -91,37 +118,53 @@ run.bat [--config FILE]           # Windows
 python3 src/main.py [--config FILE]
 ```
 
-Демонстрация обработки ошибок всех параметров:
+Демонстрационные скрипты:
 
 ```bash
-bash scripts/demo_config.sh       # Windows: scripts\demo_config.bat
+bash scripts/demo_config.sh       # ошибки конфигурации (этап 1)
+bash scripts/demo_deps.sh         # прямые зависимости (этап 2)
 ```
+
+Для Windows — одноименные `.bat`-файлы в `scripts/`.
 
 ## 4. Примеры использования
 
-### Корректная конфигурация
+### Прямые зависимости curl
 
 ```
 $ ./run.sh
-package = curl
-repository = http://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz
-test_mode = false
-version = 8.5.0-2ubuntu10
-output = graph.png
-filter = ''
+Прямые зависимости curl 8.5.0-2ubuntu10:
+  libc6 (>= 2.34)
+  libcurl4t64 (= 8.5.0-2ubuntu10)
+  zlib1g (>= 1:1.1.4)
 ```
 
-### Ошибки в значениях
+### Прямые зависимости git
 
 ```
-$ ./run.sh --config configs/errors/bad_values.yaml
-Ошибка конфигурации: package: недопустимое имя 'Curl Tool': допускаются строчные латинские буквы, цифры и символы + . - (от 2 символов)
-Ошибка конфигурации: repository: ожидается URL со схемой http, https или file: 'ftp://archive.ubuntu.com/ubuntu'
-Ошибка конфигурации: version: недопустимая версия 'v8.5': начинается с цифры, далее латинские буквы, цифры и символы . + ~ : -
-Ошибка конфигурации: output: имя файла должно оканчиваться на .png: 'no_such_dir/graph.svg'
+$ ./run.sh --config configs/git.yaml
+Прямые зависимости git 1:2.43.0-1ubuntu7:
+  libc6 (>= 2.38)
+  libcurl3t64-gnutls (>= 7.56.1)
+  libexpat1 (>= 2.0.1)
+  libpcre2-8-0 (>= 10.34)
+  zlib1g (>= 1:1.2.2)
+  perl
+  liberror-perl
+  git-man (>> 1:2.43.0)
+  git-man (<< 1:2.43.0-.)
 ```
 
-### Пропущенные и неизвестные параметры
+### Ошибки репозитория
+
+```
+$ ./run.sh --config configs/errors/unknown_version.yaml
+Ошибка репозитория: версия 7.0.0 пакета curl не найдена; доступные версии: 8.5.0-2ubuntu10
+$ ./run.sh --config configs/errors/bad_url.yaml
+Ошибка репозитория: сервер вернул ошибку 404 для http://archive.ubuntu.com/ubuntu/dists/noble/main/no-such-index.gz
+```
+
+### Ошибки конфигурации
 
 ```
 $ ./run.sh --config configs/errors/missing_params.yaml
@@ -135,6 +178,6 @@ $ ./run.sh --config configs/errors/missing_params.yaml
 
 ```
 $ python3 -m pytest -q
-.....................                                     [100%]
-21 passed
+...................................                       [100%]
+35 passed
 ```

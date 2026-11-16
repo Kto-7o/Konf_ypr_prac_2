@@ -2,7 +2,7 @@
 
 import pytest
 
-from config import ConfigError, format_params, load_config
+from config import ConfigError, load_config
 
 VALID = {
     "package": "curl",
@@ -121,16 +121,3 @@ def test_test_mode_rules(tmp_path):
     messages = errors_for(tmp_path, test_mode="true")
     assert any(m.startswith("package: ") for m in messages)
     assert any("не найден" in m for m in messages)
-
-
-def test_format_params(tmp_path):
-    """Все параметры выводятся в формате «ключ = значение»."""
-    lines = format_params(load_config(write_config(tmp_path, VALID)))
-    assert lines == [
-        "package = curl",
-        "repository = http://archive.ubuntu.com/ubuntu/Packages.gz",
-        "test_mode = false",
-        "version = 8.5.0-2ubuntu10",
-        "output = graph.png",
-        "filter = ''",
-    ]

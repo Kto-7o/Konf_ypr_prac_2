@@ -1,0 +1,6 @@
+# Пакет git из репозитория Ubuntu 24.04 (noble), компонент main
+package: git
+repository: http://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz
+test_mode: false
+version: "1:2.43.0-1ubuntu7"
+output: git.png

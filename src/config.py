@@ -222,16 +222,3 @@ def load_config(path: str = DEFAULT_CONFIG) -> Config:
     if values["filter"] is None:
         values["filter"] = ""
     return Config(**values)
-
-
-def format_params(config: Config) -> List[str]:
-    """Формирует строки «ключ = значение» для всех параметров."""
-    lines = []
-    for key in PARAMS:
-        value = getattr(config, key)
-        if isinstance(value, bool):
-            value = str(value).lower()
-        elif value == "":
-            value = "''"
-        lines.append(f"{key} = {value}")
-    return lines

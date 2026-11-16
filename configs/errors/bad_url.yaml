@@ -1,0 +1,6 @@
+# Файл индекса по URL не существует (ошибка HTTP 404)
+package: curl
+repository: http://archive.ubuntu.com/ubuntu/dists/noble/main/no-such-index.gz
+test_mode: false
+version: "8.5.0-2ubuntu10"
+output: graph.png

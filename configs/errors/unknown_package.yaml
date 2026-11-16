@@ -1,0 +1,6 @@
+# Пакет отсутствует в репозитории (компонент main)
+package: no-such-package
+repository: http://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz
+test_mode: false
+version: "1.0"
+output: graph.png

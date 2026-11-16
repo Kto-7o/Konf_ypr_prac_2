@@ -1,0 +1,48 @@
+Package: curl
+Architecture: amd64
+Version: 8.5.0-2ubuntu10
+Depends: libc6 (>= 2.34), libcurl4t64 (= 8.5.0-2ubuntu10), zlib1g (>= 1:1.1.4)
+Description: command line tool for transferring data with URL syntax
+ curl is a command line tool for transferring data with URL syntax,
+ supporting DICT, FILE, FTP, FTPS, GOPHER, HTTP, HTTPS.
+
+Package: curl
+Architecture: amd64
+Version: 8.5.0-2ubuntu10.4
+Depends: libc6 (>= 2.34), libcurl4t64 (= 8.5.0-2ubuntu10.4),
+ zlib1g (>= 1:1.1.4)
+
+Package: libcurl4t64
+Architecture: amd64
+Version: 8.5.0-2ubuntu10
+Pre-Depends: multiarch-support
+Depends: libc6 (>= 2.38), libssl3t64 (>= 3.0.0) | libssl-alt, zlib1g
+
+Package: libc6
+Architecture: amd64
+Version: 2.39-0ubuntu8
+Depends: libgcc-s1
+
+Package: libgcc-s1
+Architecture: amd64
+Version: 14-20240412-0ubuntu1
+Depends: gcc-14-base (= 14-20240412-0ubuntu1), libc6 (>= 2.35)
+
+Package: gcc-14-base
+Architecture: amd64
+Version: 14-20240412-0ubuntu1
+
+Package: zlib1g
+Architecture: amd64
+Version: 1:1.3.dfsg-3.1ubuntu2
+Depends: libc6 (>= 2.14)
+
+Package: libssl3t64
+Architecture: amd64
+Version: 3.0.13-0ubuntu3
+Depends: libc6 (>= 2.34)
+
+Package: python3-six
+Architecture: all
+Version: 1.16.0-4
+Depends: python3:any
